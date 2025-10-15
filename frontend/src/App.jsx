@@ -2,6 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Star, TrendingUp, Package, User, Loader, Heart } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// USD -> INR conversion rate (can be overridden with REACT_APP_USD_TO_INR)
+const USD_TO_INR = parseFloat(process.env.REACT_APP_USD_TO_INR) || 83.5;
+
+function formatINR(amountUSD) {
+  if (amountUSD == null || isNaN(Number(amountUSD))) return '';
+  const inr = Number(amountUSD) * USD_TO_INR;
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(inr);
+}
+
+function convertDollarAmountsInText(text) {
+  if (!text) return text;
+  // Replace $<number> occurrences with formatted INR
+  return String(text).replace(/\$([0-9]+(?:\.[0-9]+)?)/g, (_m, num) => {
+    const n = Number(num);
+    if (isNaN(n)) return _m;
+    return formatINR(n);
+  });
+}
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -75,15 +93,31 @@ function App() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_URL}/recommendations/${selectedUser}`);
-      if (!response.ok) throw new Error('Failed to fetch recommendations');
-      const data = await response.json();
-      setRecommendations(data);
+      const url = `${API_URL}/recommendations/${encodeURIComponent(selectedUser)}`;
+      console.debug('Fetching recommendations from', url);
+      const response = await fetch(url);
+
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (e) {
+        // If server returned non-JSON, surface the raw text
+        throw new Error(`Invalid server response: ${text}`);
+      }
+
+      if (!response.ok) {
+        const message = (data && data.error) || `Server returned ${response.status}`;
+        throw new Error(message);
+      }
+
+      setRecommendations(data || []);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
-      setError('Failed to generate recommendations. Please try again.');
+      setError(error.message || 'Failed to generate recommendations. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const addInteraction = async (productId, type) => {
@@ -126,7 +160,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen app-root">
       {/* Header */}
       <header className="bg-white shadow-md border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -136,7 +170,7 @@ function App() {
                 <ShoppingCart className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold  bg-clip-text">
                   Smart Recommender
                 </h1>
                 <p className="text-xs text-gray-500">AI-Powered Shopping Assistant</p>
@@ -287,7 +321,7 @@ function App() {
                         {product.category}
                       </span>
                       <span className="text-2xl font-bold text-green-600">
-                        ${product.price}
+                        {formatINR(product.price)}
                       </span>
                     </div>
                     
@@ -306,7 +340,7 @@ function App() {
                             Why you'll love this:
                           </p>
                           <p className="text-sm text-gray-700 leading-relaxed">
-                            {product.explanation}
+                            {convertDollarAmountsInText(product.explanation)}
                           </p>
                         </div>
                       </div>
@@ -365,7 +399,7 @@ function App() {
                     {product.description}
                   </p>
                   <p className="text-xl font-bold text-green-600 mb-4">
-                    ${product.price}
+                    {formatINR(product.price)}
                   </p>
                   <div className="flex gap-2">
                     <button 
