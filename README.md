@@ -1,3 +1,6 @@
+
+VIDEO LINK:https://drive.google.com/file/d/1Ntnpv_E34XZv0pa1TfsBGd2x70YaE4Lp/view?usp=sharing
+
 # 🛍️ E-commerce Product Recommender with AI
 
 An intelligent product recommendation system that combines **AI-powered personalization** with **real-time user interaction tracking**. Built with **React, Node.js, Supabase, and Google Gemini** for seamless recommendations and natural language explanations.
